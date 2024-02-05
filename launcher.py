@@ -2,80 +2,70 @@ import dropbox
 import os
 import zipfile
 import shutil
+import subprocess
+import sys
 
-# Constants
-ACCESS_TOKEN = 'sl.BvDrdfuojaA2wV8BMKJyxP1CNzV_YaKmIQQay2JsoGwYEBjjSykcjW3blTRCDhdnj7ykLkNM7wHSSd5FpJxDSN9z1qj235TY8o9tbTe0W5y2ZTAfwT8ntgpb7WISUkGF0C3tk6dj66ty0FNjr_neuJU'
-# Automatically sets the game folder path to the launcher's current directory
-GAME_FOLDER_PATH = os.path.dirname(os.path.abspath(__file__))
-VERSION_FILE_NAME = 'version.txt'
-VERSION_FILE_PATH = os.path.join(GAME_FOLDER_PATH, VERSION_FILE_NAME)
-# Assuming the version file is in the root of your Dropbox app folder
-DROPBOX_VERSION_FILE = '/' + VERSION_FILE_NAME
+ACCESS_TOKEN = ''  # Dropbox public token
+GAME_FOLDER_PATH = os.path.dirname(os.path.abspath(__file__))  # Recognize the current directory of the launcher and/or game
+VERSION_FILE_PATH = os.path.join(GAME_FOLDER_PATH, 'version.txt')  # Recognizing local text file with installed game version
+DROPBOX_VERSION_FILE = '/' + 'version.txt'  # Path to the current version file on Dropbox cloud
 
-# Initialize Dropbox client
 dbx = dropbox.Dropbox(ACCESS_TOKEN)
 
-def get_dropbox_version():
-    """Get the latest game version from Dropbox."""
-    try:
-        md, res = dbx.files_download(DROPBOX_VERSION_FILE)
-    except dropbox.exceptions.ApiError as err:
-        print('Failed to download version file from Dropbox:', err)
-        return None
-    data = res.content.decode()
-    return data.strip()
-
-def get_local_version():
-    """Get the local version of the game."""
-    try:
-        with open(VERSION_FILE_PATH, 'r') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return None
+def get_version(path, is_remote=False):
+    if is_remote:  # Getting the latest version on the cloud
+        try:
+            _, res = dbx.files_download(path)
+            return res.content.decode().strip()
+        except dropbox.exceptions.ApiError as err:
+            print(f'Failed to download version file: {err}')
+            return None
+    else:  # Getting the local version
+        try:
+            with open(path, 'r') as file:
+                return file.read().strip()
+        except FileNotFoundError:
+            return None
 
 def update_game():
-    """Update the game to the latest version."""
-    local_version = get_local_version()
-    remote_version = get_dropbox_version()
-
+    local_version = get_version(VERSION_FILE_PATH)
+    remote_version = get_version(DROPBOX_VERSION_FILE, is_remote=True)
     if remote_version is None or local_version == remote_version:
-        print("Game is up to date.")
-        return
+        print("Game is up to date. Launching...")
+    else:
+        print(f"Local version: {local_version} || Latest version: {remote_version} ")
+        print(f"The download of the latest version begins. On average, it takes ~150mb.")
+        archive_name = f'{remote_version}.zip'
+        local_archive_path = os.path.join(GAME_FOLDER_PATH, archive_name)
 
-    print("Updating game to version:", remote_version)
-    # The archive name on Dropbox should match the version
-    archive_name = f'{remote_version}.zip'
-    # Assuming the archive is stored at the root of the Dropbox app folder
-    dropbox_archive_path = '/' + archive_name
-    local_archive_path = os.path.join(GAME_FOLDER_PATH, archive_name)
+        try:
+            dbx.files_download_to_file(local_archive_path, '/' + archive_name)
+            print(f"Downloaded {archive_name} successfully.")
+        except dropbox.exceptions.ApiError as err:
+            print(f'Failed to download the game archive: {err}')
+            return
 
-    # Downloading the latest game archive
-    try:
-        dbx.files_download_to_file(local_archive_path, dropbox_archive_path)
-    except dropbox.exceptions.ApiError as err:
-        print('Failed to download the game archive:', err)
-        return
+        for item in os.listdir(GAME_FOLDER_PATH):
+            item_path = os.path.join(GAME_FOLDER_PATH, item)
+            if item_path not in [__file__, VERSION_FILE_PATH, local_archive_path]:
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
 
-    # Clean existing game files except the launcher
-    for item in os.listdir(GAME_FOLDER_PATH):
-        item_path = os.path.join(GAME_FOLDER_PATH, item)
-        if os.path.isfile(item_path) and item != os.path.basename(__file__) and item != VERSION_FILE_NAME:
-            os.remove(item_path)
-        elif os.path.isdir(item_path):
-            shutil.rmtree(item_path)
+        with zipfile.ZipFile(local_archive_path, 'r') as zip_ref:
+            zip_ref.extractall(GAME_FOLDER_PATH)
+        os.remove(local_archive_path)
+        with open(VERSION_FILE_PATH, 'w') as file:
+            file.write(remote_version)
+        print(f"Game successfully updated to version: {remote_version}")
 
-    # Unpack the new version
-    with zipfile.ZipFile(local_archive_path, 'r') as zip_ref:
-        zip_ref.extractall(GAME_FOLDER_PATH)
+    # Launch the game
+    game_exe_path = os.path.join(GAME_FOLDER_PATH, 'Iron Lion Last Stand.exe')
+    subprocess.run(game_exe_path, shell=True)
 
-    # Remove the downloaded archive after extraction
-    os.remove(local_archive_path)
-
-    # Update the local version file
-    with open(VERSION_FILE_PATH, 'w') as f:
-        f.write(remote_version)
-
-    print("Game updated successfully to version:", remote_version)
+    # Exit the script after launching the game
+    sys.exit()
 
 if __name__ == '__main__':
     update_game()
