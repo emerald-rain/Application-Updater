@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 
-ACCESS_TOKEN = ''  # Dropbox public token
+ACCESS_TOKEN = 'YOUR_ACCESS_TOKEN'  # Dropbox public token
 GAME_FOLDER_PATH = os.getcwd()  # Get the current working directory
 VERSION_FILE_PATH = os.path.join(GAME_FOLDER_PATH, 'version.txt')  # Recognizing local text file with installed game version
 DROPBOX_VERSION_FILE = '/' + 'version.txt'  # Path to the current version file on Dropbox cloud
@@ -66,9 +66,10 @@ def update_game():
             
     except Exception as e:
         print(f"An error occurred: {e}")
+        input("Press to Enter to exit...")
 
     # Launch the game
-    game_exe_path = os.path.join(GAME_FOLDER_PATH, 'Iron Lion Last Stand.exe')
+    game_exe_path = os.path.join(GAME_FOLDER_PATH, 'GAME.exe')
     subprocess.run(game_exe_path, shell=True)
 
     # Exit the script after launching the game
