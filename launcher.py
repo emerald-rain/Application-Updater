@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 ACCESS_TOKEN = ''  # Dropbox public token
-GAME_FOLDER_PATH = os.path.dirname(os.path.abspath(__file__))  # Recognize the current directory of the launcher and/or game
+GAME_FOLDER_PATH = os.getcwd()  # Get the current working directory
 VERSION_FILE_PATH = os.path.join(GAME_FOLDER_PATH, 'version.txt')  # Recognizing local text file with installed game version
 DROPBOX_VERSION_FILE = '/' + 'version.txt'  # Path to the current version file on Dropbox cloud
 
@@ -28,37 +28,44 @@ def get_version(path, is_remote=False):
             return None
 
 def update_game():
-    local_version = get_version(VERSION_FILE_PATH)
-    remote_version = get_version(DROPBOX_VERSION_FILE, is_remote=True)
-    if remote_version is None or local_version == remote_version:
-        print("Game is up to date. Launching...")
-    else:
-        print(f"Local version: {local_version} || Latest version: {remote_version} ")
-        print(f"The download of the latest version begins. On average, it takes ~150mb.")
-        archive_name = f'{remote_version}.zip'
-        local_archive_path = os.path.join(GAME_FOLDER_PATH, archive_name)
+    try:
+        local_version = get_version(VERSION_FILE_PATH)
+        remote_version = get_version(DROPBOX_VERSION_FILE, is_remote=True)
+        if remote_version is None or local_version == remote_version:
+            print("Game is up to date. Launching...")
+        else:
+            print(f"Local version: {local_version} || Latest version: {remote_version} ")
+            print(f"The download of the latest version begins. On average, it takes ~150mb.")
+            archive_name = f'{remote_version}.zip'
+            local_archive_path = os.path.join(GAME_FOLDER_PATH, archive_name)
 
-        try:
-            dbx.files_download_to_file(local_archive_path, '/' + archive_name)
-            print(f"Downloaded {archive_name} successfully.")
-        except dropbox.exceptions.ApiError as err:
-            print(f'Failed to download the game archive: {err}')
-            return
+            try:
+                dbx.files_download_to_file(local_archive_path, '/' + archive_name)
+                print(f"Downloaded {archive_name} successfully.")
+            except dropbox.exceptions.ApiError as err:
+                print(f'Failed to download the game archive: {err}')
+                return
 
-        for item in os.listdir(GAME_FOLDER_PATH):
-            item_path = os.path.join(GAME_FOLDER_PATH, item)
-            if item_path not in [__file__, VERSION_FILE_PATH, local_archive_path]:
-                if os.path.isfile(item_path):
-                    os.remove(item_path)
-                elif os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
+            for item in os.listdir(GAME_FOLDER_PATH):
+                item_path = os.path.join(GAME_FOLDER_PATH, item)
+                if item_path not in [(os.path.join(GAME_FOLDER_PATH, "launcher.exe")), VERSION_FILE_PATH, local_archive_path]:
+                    try:
+                        if os.path.isfile(item_path):
+                            os.remove(item_path)
+                        elif os.path.isdir(item_path):
+                            shutil.rmtree(item_path)
+                    except PermissionError as e:
+                        print(f"Failed to delete {item_path}: {e}")
 
-        with zipfile.ZipFile(local_archive_path, 'r') as zip_ref:
-            zip_ref.extractall(GAME_FOLDER_PATH)
-        os.remove(local_archive_path)
-        with open(VERSION_FILE_PATH, 'w') as file:
-            file.write(remote_version)
-        print(f"Game successfully updated to version: {remote_version}")
+            with zipfile.ZipFile(local_archive_path, 'r') as zip_ref:
+                zip_ref.extractall(GAME_FOLDER_PATH)
+            os.remove(local_archive_path)
+            with open(VERSION_FILE_PATH, 'w') as file:
+                file.write(remote_version)
+            print(f"Game successfully updated to version: {remote_version}")
+            
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
     # Launch the game
     game_exe_path = os.path.join(GAME_FOLDER_PATH, 'Iron Lion Last Stand.exe')
