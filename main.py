@@ -5,8 +5,8 @@ from io import BytesIO
 import shutil
 
 # Your Dropbox links
-DROPBOX_VERSION_LINK = "https://www.dropbox.com/scl/fi/t47kkpy1unuo51cqlh1lj/version.txt?rlkey=q8sgt5ip0b2p6o6s1eo6jd3w2&dl=1"
-DROPBOX_ARCHIVE_LINK = "https://www.dropbox.com/scl/fi/2635rb4nsnytsw6grmsxc/WindowsBuild.zip?rlkey=9mij3gcphia3an7dwullxg05p&dl=1"
+DROPBOX_VERSION_LINK = ""
+DROPBOX_ARCHIVE_LINK = ""
 
 # Local version file and update directory
 LOCAL_VERSION_FILE = "version.txt"
@@ -29,10 +29,14 @@ def is_newer_version(local_version, online_version):
 def clear_update_directory():
     for item in os.listdir(UPDATE_DIRECTORY):
         item_path = os.path.join(UPDATE_DIRECTORY, item)
-        if os.path.isfile(item_path) or os.path.islink(item_path):
-            os.unlink(item_path)
-        elif os.path.isdir(item_path):
-            shutil.rmtree(item_path)
+        try:
+            if os.path.isfile(item_path) or os.path.islink(item_path):
+                os.unlink(item_path)
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+        except Exception as e:
+            return
+
     print("Update directory cleared.")
 
 # Extract the archive to the update directory.
@@ -52,13 +56,17 @@ def main():
         online_version = read_version_from_string(online_version_string)
         
         # Read the local version
-        with open(LOCAL_VERSION_FILE, 'r') as file:
-            local_version_string = file.read()
-        local_version = read_version_from_string(local_version_string)
+        try:
+            with open(LOCAL_VERSION_FILE, 'r') as file:
+                local_version_string = file.read()
+            local_version = read_version_from_string(local_version_string)
+        except:
+            print("The version file could not be read. If this is the first run, you have nothing to worry about.")
+            local_version = read_version_from_string("0.0.0")
         
         # Compare versions
         if is_newer_version(local_version, online_version):
-            print(f"New version available: {online_version_string}. Updating...")
+            input(f"New version available: {online_version_string}. Press Enter to start downloading the update archive...")
             archive_bytes = download_file(DROPBOX_ARCHIVE_LINK)
             update_application(archive_bytes)
         else:
