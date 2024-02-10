@@ -4,18 +4,20 @@ import os
 from io import BytesIO
 import shutil
 
-# Your Dropbox links
-DROPBOX_VERSION_LINK = ""
-DROPBOX_ARCHIVE_LINK = ""
+# DROPBOX_VERSION_LINK: URL to a text file containing the latest version string (e.g., "1.2.3").
+# DROPBOX_ARCHIVE_LINK: URL to download the application update archive (e.g., "WindowsBuild.zip").
+DROPBOX_VERSION_LINK = "https://www.dropbox.com/scl/fi/t47kkpy1unuo51cqlh1lj/version.txt?rlkey=q8sgt5ip0b2p6o6s1eo6jd3w2&dl=1"
+DROPBOX_ARCHIVE_LINK = "https://www.dropbox.com/scl/fi/2635rb4nsnytsw6grmsxc/WindowsBuild.zip?rlkey=9mij3gcphia3an7dwullxg05p&dl=1"
 
-# Local version file and update directory
+# LOCAL_VERSION_FILE: Path to a file storing the locally installed version (e.g., "version.txt").
+# PDATE_DIRECTORY: Directory to extract the downloaded update archive (defaults to the current working directory).
 LOCAL_VERSION_FILE = "version.txt"
 UPDATE_DIRECTORY = os.getcwd()
 
-# Download a file from a given URL.
+# Downloads a file from the given URL.
 def download_file(url):
     response = requests.get(url)
-    response.raise_for_status()  # Raises an HTTPError if the response status code is 4XX/5XX
+    response.raise_for_status()
     return response.content
 
 # Parse a version string and return a tuple of integers.
